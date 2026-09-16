@@ -1,52 +1,70 @@
 from dotenv import load_dotenv
 import os
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
-from langgraph.prebuilt import create_react_agent
+from langgraph.graph import StateGraph, END
+from langgraph.graph.message import add_messages
+from langgraph.prebuilt import ToolNode
+from typing import TypedDict, Annotated
+
 
 load_dotenv()
 api_key = os.getenv('API_KEY_GROQ')
+
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add_messages]
 
 class AgenteIA:
     def __init__(self, system='' , ferramentas=None):
         self.system = system
         self.messages = []
         self.ferramentas = ferramentas or []
-        if system:
-            self.messages.append({'role': 'system', 'content': self.system})
         self.modelo = ChatGroq(model='openai/gpt-oss-20b', api_key=api_key)
-        if self.ferramentas:
-            self.modelo_com_ferramentas = self.modelo.bind_tools(self.ferramentas)
+        self.modelo_com_ferramentas = self.modelo.bind_tools(self.ferramentas)
+
+        if system:
+            if self.system:
+                self.messages.append(
+                    SystemMessage(content=self.system)
+                )
+        self.app = self.criar_grafo()
+
+    def criar_grafo(self):
+        """Método interno que monta o fluxo do LangGraph para a classe."""
+        workflow = StateGraph(AgentState)
+
+        def chamar_modelo(state: AgentState):
+            response = self.modelo_com_ferramentas.invoke(state["messages"])
+
+            return {"messages": [response]}
+
+        workflow.add_node("chatbot", chamar_modelo)
+
+        workflow.add_node(
+            "tools",
+            ToolNode(self.ferramentas)
+        )
+
+        workflow.set_entry_point("chatbot")
+
+        workflow.add_conditional_edges(
+            "chatbot",
+            lambda state:
+            "tools"
+            if state["messages"][-1].tool_calls
+            else END
+        )
+
+        workflow.add_edge(
+            "tools",
+            "chatbot")
+
+        return workflow.compile()
 
     def __call__(self, message):
-        self.messages.append({'role': 'user', 'content': message})
-        resposta = self.execute()
-        self.messages.append({'role': 'assistant', 'content': resposta})
-        return resposta
-
-    def execute(self):
-        prompt = ''
-        for msg in self.messages:
-            prompt += f'{msg["role"]}: {msg["content"]}\n'
-        response = self.modelo_com_ferramentas.invoke(prompt)
-        ferramentas_mapeadas = {ferramenta.name: ferramenta for ferramenta in self.ferramentas}
-        if response.tool_calls:
-            message_turno = [response]
-            for acao in response.tool_calls:
-                print('O modelo decidiu usar uma Ferramenta.')
-                nome_funcao = acao["name"]
-                print(f'Nome função: {nome_funcao}')
-                argurmentos = acao["args"]
-
-                if nome_funcao in ferramentas_mapeadas:
-                    resultado_ferramenta = ferramentas_mapeadas[nome_funcao].invoke(argurmentos)
-                    from langchain_core.messages import ToolMessage
-                    message_turno.append(
-                        ToolMessage(content=str(resultado_ferramenta), tool_call_id=acao['id'])
-                    )
-
-                    resposta_final_modelo = self.modelo_com_ferramentas.invoke(
-                        self.messages + message_turno
-                    )
-                    return resposta_final_modelo.content
-
-        return response.content
+        self.messages.append(HumanMessage(content=message))
+        resposta = self.app.invoke({'messages': self.messages})
+        self.messages = resposta['messages']
+        print(self.messages)
+        return self.messages[-1].content

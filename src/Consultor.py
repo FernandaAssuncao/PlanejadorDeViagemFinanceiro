@@ -12,7 +12,7 @@ class Consultor(ctk.CTkFrame):
         @tool
         def pegar_informacoes_viagem_usuario() -> str:
             """Pega as informações da viagem planejada pelo usuario. Retorna as informações
-            ou diz que não foi encontrada a viagem"""
+            ou diz que não foi encontrada a viagem."""
             dados = self.controller.dados_viagem
             if not dados:
                 return f'Não foi encontrada nenhuma viagem planejada pelo usuario.'
