@@ -104,7 +104,7 @@ class Planejamento(ctk.CTkFrame):
             buscou = self.clima.buscar_cidade(cidade)
             if buscou:
                 resposta = self.clima.gerar_mensagem()
-                if not 'valor' in self.controller.dados_viagem or self.controller.dados_viagem.get('cidade') != cidade:
+                if not 'valor' in self.controller.dados_viagem:
                     self.controller.dados_viagem = {
                         'valor': valor,
                         'pessoas': pessoas,

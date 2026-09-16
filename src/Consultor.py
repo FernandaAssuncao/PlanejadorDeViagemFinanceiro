@@ -1,12 +1,27 @@
 import customtkinter as ctk
 from .Agente.AgenteIA import AgenteIA
+from langchain_core.tools import tool
 import re
+import json
 
 class Consultor(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
-        self.assistente = AgenteIA('Você é um assistente de viagens curto e objetivo.')
+
+        @tool
+        def pegar_informacoes_viagem_usuario() -> str:
+            """Pega as informações da viagem planejada pelo usuario. Retorna as informações
+            ou diz que não foi encontrada a viagem"""
+            dados = self.controller.dados_viagem
+            if not dados:
+                return f'Não foi encontrada nenhuma viagem planejada pelo usuario.'
+            else:
+                return f'As informação da viagem planejada pelo usuario são: {json.dumps(self.controller.dados_viagem, indent=2, ensure_ascii=False)}'
+
+        self.ferramentas = [pegar_informacoes_viagem_usuario]
+        self.assistente = AgenteIA('Você é um assistente de viagens curto e objetivo.Se você já obteve o resultado de uma ferramenta nesta conversa, não a chame novamente',
+                                   ferramentas=self.ferramentas)
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -79,6 +94,7 @@ class Consultor(ctk.CTkFrame):
         self.mensagem.delete(0, 'end')
 
         resposta_ia_texte = self.assistente(texto)
+
         resposta = self.__limpar_texto_ia(resposta_ia_texte)
         self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))
 
