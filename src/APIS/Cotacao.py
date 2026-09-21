@@ -30,6 +30,7 @@ class Cotacao:
 
     def mudar_moeda(self, moeda):
         self.moeda = moeda
+
     @property
     def simbolo(self):
         return self.__simbolo

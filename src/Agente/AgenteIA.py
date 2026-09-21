@@ -66,5 +66,4 @@ class AgenteIA:
         self.messages.append(HumanMessage(content=message))
         resposta = self.app.invoke({'messages': self.messages})
         self.messages = resposta['messages']
-        print(self.messages)
         return self.messages[-1].content

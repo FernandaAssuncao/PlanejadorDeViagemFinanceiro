@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from .Agente.AgenteIA import AgenteIA
+from .APIS.Cotacao import Cotacao
 from langchain_core.tools import tool
 import re
 import json
@@ -19,7 +20,25 @@ class Consultor(ctk.CTkFrame):
             else:
                 return f'As informação da viagem planejada pelo usuario são: {json.dumps(self.controller.dados_viagem, indent=2, ensure_ascii=False)}'
 
-        self.ferramentas = [pegar_informacoes_viagem_usuario]
+        @tool
+        def pegar_cotacao_moeda(moeda) -> str:
+            """Pega a cotação da moeda que o usuario quer saber e retorna o valor dela em real
+            A variavel necessesaria é a moeda que o usuario pediu, por exemplo euro, ou dolár."""
+            moeda = moeda.strip().lower()
+            cotacao = Cotacao()
+            if moeda == 'euro':
+                cotacao.mudar_moeda('EURBRL')
+                return f'A cotação da moeda {cotacao.moeda} é R${cotacao.cotacao:.2f}'
+            elif moeda == 'dólar':
+                cotacao.mudar_moeda('USDBRL')
+                return f'A cotação da moeda {cotacao.moeda} é R${cotacao.cotacao:.2f}'
+            elif moeda == 'biticoin':
+                cotacao.mudar_moeda('BTCBRL')
+                return f'A cotação da moeda {cotacao.moeda} é R${cotacao.cotacao:.2f}'
+            else:
+                return 'Moeda não encontrada.'
+
+        self.ferramentas = [pegar_informacoes_viagem_usuario, pegar_cotacao_moeda]
         self.assistente = AgenteIA('Você é um assistente de viagens curto e objetivo.Se você já obteve o resultado de uma ferramenta nesta conversa, não a chame novamente',
                                    ferramentas=self.ferramentas)
 
