@@ -1,6 +1,8 @@
 import customtkinter as ctk
 from .Agente.AgenteIA import AgenteIA
 from .APIS.Cotacao import Cotacao
+from .APIS.Clima import ClimaService
+from .GerenciadorDeDados.GerenciadorDeDados import GerenciadorDeDados
 from langchain_core.tools import tool
 import re
 import json
@@ -13,7 +15,9 @@ class Consultor(ctk.CTkFrame):
         @tool
         def pegar_informacoes_viagem_usuario() -> str:
             """Pega as informações da viagem planejada pelo usuario. Retorna as informações
-            ou diz que não foi encontrada a viagem."""
+            ou diz que não foi encontrada a viagem, lembrando que mesmo durante a conversa
+            o usuario pode atualizar, então é importante utilizar a ferramenta quando o
+            usuario solicitar."""
             dados = self.controller.dados_viagem
             if not dados:
                 return f'Não foi encontrada nenhuma viagem planejada pelo usuario.'
@@ -21,7 +25,7 @@ class Consultor(ctk.CTkFrame):
                 return f'As informação da viagem planejada pelo usuario são: {json.dumps(self.controller.dados_viagem, indent=2, ensure_ascii=False)}'
 
         @tool
-        def pegar_cotacao_moeda(moeda) -> str:
+        def pegar_cotacao_moeda(moeda:str) -> str:
             """Pega a cotação da moeda que o usuario quer saber e retorna o valor dela em real
             A variavel necessesaria é a moeda que o usuario pediu, por exemplo euro, ou dolár."""
             moeda = moeda.strip().lower()
@@ -38,7 +42,36 @@ class Consultor(ctk.CTkFrame):
             else:
                 return 'Moeda não encontrada.'
 
-        self.ferramentas = [pegar_informacoes_viagem_usuario, pegar_cotacao_moeda]
+        @tool
+        def pegar_clima_cidade(cidade:str) -> str:
+            """"Busca o clima da cidade que o usuario perguntou e retorna por exemplo:
+            temperatura, humidade, sensação, condição. E a função precisa do nome da cidade
+            que o usuario deseja: Ex: Berlim."""
+            cidade = cidade.strip().lower()
+            clima = ClimaService()
+            buscou = clima.buscar_cidade(cidade=cidade)
+            if buscou:
+                return f'A temperatura da cidade é {clima.temperatura}°C. A umidade da cidade é {clima.humidade}% A condição é {clima.condicao} e a sensação é de {clima.sensacao}'
+            else:
+                return 'Não foi possivel buscar a cidade que o usuario quer.'
+
+        @tool
+        def pegar_historico_de_viagens_planejadas_pelo_usuario() -> list:
+            """Busca as viagens que o usuario já planejou/buscou e retorna uma
+             lista de dicionario com o historico total
+              para que voce realize a analise solicitada."""
+            c = GerenciadorDeDados()
+            dados = c.gerar_historico_para_ia()
+            if dados:
+                return dados
+            else:
+                return [{'Dados':
+                             'Não a dados para mostrar. O usuario não realizou nenhuma busca.'}]
+
+        self.ferramentas = [pegar_informacoes_viagem_usuario,
+                            pegar_cotacao_moeda,
+                            pegar_clima_cidade,
+                            pegar_historico_de_viagens_planejadas_pelo_usuario]
         self.assistente = AgenteIA('Você é um assistente de viagens curto e objetivo.Se você já obteve o resultado de uma ferramenta nesta conversa, não a chame novamente',
                                    ferramentas=self.ferramentas)
 

@@ -68,3 +68,10 @@ class GerenciadorDeDados:
         viagens = len(df)
         dias = df['Dias'].sum().item()
         return [orcamento, viagens, dias]
+
+    def gerar_historico_para_ia(self):
+        if not os.path.exists(self.nome_arquivo):
+            self.__criar_arquivo()
+        df = pd.read_csv(self.nome_arquivo)
+        dados = df.to_dict(orient='records')
+        return dados
