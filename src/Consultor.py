@@ -4,6 +4,7 @@ from .APIS.Cotacao import Cotacao
 from .APIS.Clima import ClimaService
 from .GerenciadorDeDados.GerenciadorDeDados import GerenciadorDeDados
 from langchain_core.tools import tool
+import threading
 import re
 import json
 
@@ -13,11 +14,13 @@ class Consultor(ctk.CTkFrame):
         self.controller = controller
 
         @tool
-        def pegar_informacoes_viagem_usuario() -> str:
-            """Pega as informações da viagem planejada pelo usuario. Retorna as informações
-            ou diz que não foi encontrada a viagem, lembrando que mesmo durante a conversa
-            o usuario pode atualizar, então é importante utilizar a ferramenta quando o
-            usuario solicitar."""
+        def pegar_informacoes_viagem_usuario_atualmente_planejada() -> str:
+            """Retorna SOMENTE a viagem atualmente planejada pelo usuario no aplicativo.
+
+            Use esta ferramenta quando o usuario perguntar sobre a viagem que ele
+            está planejando agora, como destino, orçamento, quantidade de pessoas,
+            quantidade de dias, moeda ou outras informações da viagem atual.
+            Esta ferramenta NÃO retorna o historico de viagens anteriores."""
             dados = self.controller.dados_viagem
             if not dados:
                 return f'Não foi encontrada nenhuma viagem planejada pelo usuario.'
@@ -57,9 +60,11 @@ class Consultor(ctk.CTkFrame):
 
         @tool
         def pegar_historico_de_viagens_planejadas_pelo_usuario() -> list:
-            """Busca as viagens que o usuario já planejou/buscou e retorna uma
-             lista de dicionario com o historico total
-              para que voce realize a analise solicitada."""
+            """Retorna o historico de viagens que o usuario já planejou anteriormente.
+            Use esta ferramenta SOMENTE quando o usuario perguntar sobre viagens
+            anteriores, historico, viagens passadas, destinos já planejados ou
+            quiser comparar suas viagens anteriores.
+            Esta ferramenta NÃO representa a viagem atualmente planejada."""
             c = GerenciadorDeDados()
             dados = c.gerar_historico_para_ia()
             if dados:
@@ -68,12 +73,39 @@ class Consultor(ctk.CTkFrame):
                 return [{'Dados':
                              'Não a dados para mostrar. O usuario não realizou nenhuma busca.'}]
 
-        self.ferramentas = [pegar_informacoes_viagem_usuario,
+        self.ferramentas = [pegar_informacoes_viagem_usuario_atualmente_planejada,
                             pegar_cotacao_moeda,
                             pegar_clima_cidade,
                             pegar_historico_de_viagens_planejadas_pelo_usuario]
-        self.assistente = AgenteIA('Você é um assistente de viagens curto e objetivo.Se você já obteve o resultado de uma ferramenta nesta conversa, não a chame novamente',
-                                   ferramentas=self.ferramentas)
+        self.assistente = AgenteIA('''
+            Você é um assistente de viagens curto e objetivo.
+
+            Existem duas fontes diferentes de informações sobre viagens:
+
+            1. VIAGEM ATUALMENTE PLANEJADA:
+           Representa somente a viagem que está atualmente planejada
+           no aplicativo pelo usuário.
+           Use a ferramenta pegar_informacoes_viagem_usuario_atualmente_planejada quando
+           o usuário perguntar sobre a viagem atual.
+
+            2. HISTÓRICO DE VIAGENS:
+            Representa viagens planejadas anteriormente pelo usuário.
+            Use a ferramenta pegar_historico_de_viagens somente quando
+            o usuário perguntar sobre viagens anteriores, histórico,
+            viagens passadas ou comparações entre viagens.
+            Nunca confunda a viagem atualmente planejada com o histórico.
+            Se o usuário disser "minha viagem", "minha viagem atual",
+            "a viagem que estou planejando" ou fizer uma pergunta sobre
+            o planejamento atual, consulte a viagem atualmente planejada.
+            Se o usuário disser "minhas viagens anteriores", "histórico",
+            "viagens que já fiz/planejei", "viagens passadas" ou pedir
+            comparação com viagens anteriores, consulte o histórico.
+            Se o usuário atualizar a viagem no aplicativo, consulte novamente
+            a ferramenta da viagem atualmente planejada para obter os dados
+            atualizados.
+            Se você já possui uma informação que continua válida na conversa,
+            não chame novamente a ferramenta desnecessariamente.
+            Responda de forma curta e objetiva.''', ferramentas=self.ferramentas)
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
@@ -145,10 +177,20 @@ class Consultor(ctk.CTkFrame):
         self.__adicionar_mensagem(texto, remetente='usuario')
         self.mensagem.delete(0, 'end')
 
-        resposta_ia_texte = self.assistente(texto)
+        self.mensagem.configure(state="disabled")
+        self.configure(cursor="watch")
 
-        resposta = self.__limpar_texto_ia(resposta_ia_texte)
-        self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))
+        def processar_ia_no_segundo_plano():
+            resposta_ia_texte = self.assistente(texto)
+
+            resposta = self.__limpar_texto_ia(resposta_ia_texte)
+            self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))
+
+            self.configure(cursor="")
+            self.mensagem.configure(state="normal")
+
+        thread = threading.Thread(target=processar_ia_no_segundo_plano, daemon=True)
+        thread.start()
 
     @staticmethod
     def __limpar_texto_ia(texto):
