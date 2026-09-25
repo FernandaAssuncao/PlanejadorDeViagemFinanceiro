@@ -28,6 +28,10 @@ class Cotacao:
     def calcular_valor_para_a_moeda(self, valor):
         return valor / self.cotacao
 
+    @staticmethod
+    def calcular_valor_para_a_moeda_ia(valor:float, cotacao:float):
+        return valor / cotacao
+
     def mudar_moeda(self, moeda):
         self.moeda = moeda
 

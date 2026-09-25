@@ -39,7 +39,7 @@ class Consultor(ctk.CTkFrame):
             elif moeda == 'dólar':
                 cotacao.mudar_moeda('USDBRL')
                 return f'A cotação da moeda {cotacao.moeda} é R${cotacao.cotacao:.2f}'
-            elif moeda == 'biticoin':
+            elif moeda == 'bitcoin':
                 cotacao.mudar_moeda('BTCBRL')
                 return f'A cotação da moeda {cotacao.moeda} é R${cotacao.cotacao:.2f}'
             else:
@@ -73,10 +73,38 @@ class Consultor(ctk.CTkFrame):
                 return [{'Dados':
                              'Não a dados para mostrar. O usuario não realizou nenhuma busca.'}]
 
+        @tool
+        def calcular_orcamento_viagem(orcamento:float, viajantes:int, dias: int) -> dict:
+            """Retorna os resultados dos calculos da viagem, como orçamento por dia,
+            orçamento por dia/pessoa e orçamento por viajantes. O usuario precisa informar o
+            orçamento,  o numero de viajantes e a quantidade de dias."""
+            try:
+                por_dia = orcamento / dias
+                por_pessoa = orcamento / viajantes
+                por_pessoa_dia = orcamento / viajantes / dias
+                return {'Orçamento por dia': por_dia,
+                        'Orçamento por pessoa': por_pessoa,
+                        'Orçamento por dia/pessoa': por_pessoa_dia}
+            except ZeroDivisionError, ValueError:
+                return {'Erro': 'Alguma informação ou calculo deu errado.'}
+
+        @tool
+        def converter_moeda(valor:float, cotacao:float) -> str:
+            """Retorna o valor pedido para a moeda solicitada.
+            Ex: o usuario quer saber quanto é R$560 em euro.
+            ESSA FUNÇÃO CONVERTE APENAS VALORES EM REAIS PARA A MOEDA SOLICITADA.
+            Execute a ferramenta pegar_cotacao_moeda para saber a cotação se ainda não sabe.
+            """
+            c = Cotacao()
+            resultado = c.calcular_valor_para_a_moeda_ia(valor, cotacao)
+            return f'R$ {valor:.2f} = {resultado:.2f}'
+
         self.ferramentas = [pegar_informacoes_viagem_usuario_atualmente_planejada,
                             pegar_cotacao_moeda,
                             pegar_clima_cidade,
-                            pegar_historico_de_viagens_planejadas_pelo_usuario]
+                            pegar_historico_de_viagens_planejadas_pelo_usuario,
+                            calcular_orcamento_viagem,
+                            converter_moeda]
         self.assistente = AgenteIA('''
             Você é um assistente de viagens curto e objetivo.
 
