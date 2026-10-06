@@ -1,0 +1,14 @@
+customtkinter
+requests
+pandas
+python-dotenv
+beautifulsoup4
+
+langchain
+langchain-core
+langchain-groq
+langgraph
+langgraph-checkpoint-sqlite
+groq
+
+tavily-python
