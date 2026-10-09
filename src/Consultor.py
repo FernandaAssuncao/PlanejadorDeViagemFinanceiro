@@ -209,7 +209,7 @@ class Consultor(ctk.CTkFrame):
         self.configure(cursor="watch")
 
         def processar_ia_no_segundo_plano():
-            resposta_ia_texte = self.assistente(texto)
+            resposta_ia_texte = self.assistente(texto, thread_id='nova_conversa')
 
             resposta = self.__limpar_texto_ia(resposta_ia_texte)
             self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))
