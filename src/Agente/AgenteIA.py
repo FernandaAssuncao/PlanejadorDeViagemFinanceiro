@@ -23,6 +23,11 @@ class AgenteIA:
         self.system = system
         self.ferramentas = ferramentas or []
         self.modelo = ChatGroq(model='openai/gpt-oss-120b', api_key=api_key)
+        for ferramenta in self.ferramentas:
+            print("Tipo:", type(ferramenta).__name__)
+            print("Nome:", getattr(ferramenta, "name", None))
+            print("---")
+
         self.modelo_com_ferramentas = self.modelo.bind_tools(self.ferramentas)
 
         self.conn = sqlite3.connect('./data/agente.db', check_same_thread=False)

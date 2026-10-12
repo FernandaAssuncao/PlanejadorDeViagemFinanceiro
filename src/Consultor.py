@@ -4,9 +4,14 @@ from .APIS.Cotacao import Cotacao
 from .APIS.Clima import ClimaService
 from .GerenciadorDeDados.GerenciadorDeDados import GerenciadorDeDados
 from langchain_core.tools import tool
+from dotenv import load_dotenv
+from tavily import TavilyClient
 import threading
 import re
 import json
+import os
+
+load_dotenv()
 
 class Consultor(ctk.CTkFrame):
     def __init__(self, parent, controller):
@@ -99,12 +104,58 @@ class Consultor(ctk.CTkFrame):
             resultado = c.calcular_valor_para_a_moeda_ia(valor, cotacao)
             return f'R$ {valor:.2f} = {resultado:.2f}'
 
+        @tool
+        def pesquisar_na_web(consulta: str) -> str:
+            """
+            Pesquisa informações atuais na Web sobre destinos,
+            atrações turísticas, transporte, hospedagem e custos
+            de viagem. Use quando a resposta depender de informações
+            externas ou atualizadas.
+            A consulta deve descrever claramente o que precisa ser buscado."""
+            api_key = os.getenv('TAVILY_API_KEY')
+            if not api_key:
+                return "Erro: a chave da API Tavily não foi configurada."
+            try:
+                cliente = TavilyClient(api_key=api_key)
+
+                resultado = cliente.search(
+                    query=consulta,
+                    search_depth='basic',
+                    max_results=5
+                )
+
+                resultados = resultado.get("results", [])
+
+                if not resultados:
+                    return 'Nenhum resultado encontrado.'
+
+                fontes = []
+
+                for item in resultados:
+                    fontes.append({
+                        "titulo": item.get("title", ""),
+                        "url": item.get("url", ""),
+                        "conteudo": item.get("content", "")[:1200]
+                    })
+
+                return json.dumps(
+                    fontes,
+                    ensure_ascii=False,
+                    indent=2
+                )
+            except Exception as erro:
+                return (
+                    "Não foi possível realizar a pesquisa na Web. "
+                    f"Erro: {type(erro).__name__}"
+                )
+
         self.ferramentas = [pegar_informacoes_viagem_usuario_atualmente_planejada,
                             pegar_cotacao_moeda,
                             pegar_clima_cidade,
                             pegar_historico_de_viagens_planejadas_pelo_usuario,
                             calcular_orcamento_viagem,
-                            converter_moeda]
+                            converter_moeda,
+                            pesquisar_na_web]
         self.assistente = AgenteIA('''
             Você é um assistente de viagens curto e objetivo.
 
@@ -131,6 +182,17 @@ class Consultor(ctk.CTkFrame):
             Se o usuário atualizar a viagem no aplicativo, consulte novamente
             a ferramenta da viagem atualmente planejada para obter os dados
             atualizados.
+            PESQUISA NA WEB
+            - Use a ferramenta pesquisar_na_web quando a pergunta
+              depender de informações atuais ou de fontes externas.
+            - Para perguntas sobre destinos, atrações, transporte e
+              custos atuais, pesquise antes de responder quando necessário.
+            - Não invente preços, horários, disponibilidade ou informações
+              que não estejam sustentadas pelos resultados.
+            - Diferencie informações encontradas nas fontes de estimativas.
+            - Quando utilizar a pesquisa, mencione as fontes relevantes
+            e forneça seus URLs quando disponíveis.
+            - Se os resultados forem insuficientes, informe essa limitação.
             Se você já possui uma informação que continua válida na conversa,
             não chame novamente a ferramenta desnecessariamente.
             Responda de forma curta e objetiva.''', ferramentas=self.ferramentas)
@@ -209,7 +271,7 @@ class Consultor(ctk.CTkFrame):
         self.configure(cursor="watch")
 
         def processar_ia_no_segundo_plano():
-            resposta_ia_texte = self.assistente(texto, thread_id='nova_conversa')
+            resposta_ia_texte = self.assistente(texto, thread_id='nova_conversa_teste')
 
             resposta = self.__limpar_texto_ia(resposta_ia_texte)
             self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))

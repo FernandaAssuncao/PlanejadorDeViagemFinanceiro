@@ -12,3 +12,4 @@ langgraph-checkpoint-sqlite
 groq
 
 tavily-python
+tavily
