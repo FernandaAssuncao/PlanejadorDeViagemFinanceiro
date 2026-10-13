@@ -326,11 +326,11 @@ O projeto ainda está em desenvolvimento.
 
 ### Em desenvolvimento
 
-- [ ] Conversão de moedas
-- [ ] Testes das ferramentas do agente
-- [ ] Memória persistente com SQLite + SqliteSaver
+- [X] Conversão de moedas
+- [X] Testes das ferramentas do agente
+- [X] Memória persistente com SQLite + SqliteSaver
 - [ ] Melhor gerenciamento de conversas
-- [ ] Busca de informações na Web
+- [X] Busca de informações na Web
 - [ ] Human-in-the-Loop para ações que modificam dados
 
 ### Futuramente

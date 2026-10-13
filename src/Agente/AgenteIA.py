@@ -49,7 +49,8 @@ class AgenteIA:
                 token_counter=self.modelo,
                 strategy="last",
                 include_system=True,
-                allow_partial=False
+                allow_partial=False,
+                start_on="human"
             )
 
             response = self.modelo_com_ferramentas.invoke(mensagens_recentes)
