@@ -8,6 +8,7 @@ from langgraph.prebuilt import ToolNode
 from typing import TypedDict, Annotated
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_core.messages import trim_messages
+from langchain_core.messages import AIMessage, ToolMessage
 import sqlite3
 
 
@@ -52,6 +53,24 @@ class AgenteIA:
                 allow_partial=False,
                 start_on="human"
             )
+            print("\n===== MENSAGENS APÓS O TRIM =====")
+
+            for i, mensagem in enumerate(mensagens_recentes):
+                print(f"\nMensagem {i}")
+                print("Tipo:", type(mensagem).__name__)
+                print("Conteúdo:", str(mensagem.content)[:150])
+
+                if isinstance(mensagem, AIMessage):
+                    print(
+                        "Tool calls:",
+                        getattr(mensagem, "tool_calls", [])
+                    )
+
+                if isinstance(mensagem, ToolMessage):
+                    print("Tool call ID:", mensagem.tool_call_id)
+                    print("Nome:", mensagem.name)
+
+            print("\n===== FIM DAS MENSAGENS =====")
 
             response = self.modelo_com_ferramentas.invoke(mensagens_recentes)
 

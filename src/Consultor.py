@@ -4,6 +4,7 @@ from .APIS.Cotacao import Cotacao
 from .APIS.Clima import ClimaService
 from .GerenciadorDeDados.GerenciadorDeDados import GerenciadorDeDados
 from langchain_core.tools import tool
+from langchain_core.messages import AIMessage, ToolMessage
 from dotenv import load_dotenv
 from tavily import TavilyClient
 import threading
@@ -197,6 +198,7 @@ class Consultor(ctk.CTkFrame):
             não chame novamente a ferramenta desnecessariamente.
             Responda de forma curta e objetiva.''', ferramentas=self.ferramentas)
 
+        #self.testar_agente()
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
@@ -271,7 +273,7 @@ class Consultor(ctk.CTkFrame):
         self.configure(cursor="watch")
 
         def processar_ia_no_segundo_plano():
-            resposta_ia_texte = self.assistente(texto, thread_id='nova_conversa_teste')
+            resposta_ia_texte = self.assistente(texto, thread_id='nova_conversa')
 
             resposta = self.__limpar_texto_ia(resposta_ia_texte)
             self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))
@@ -288,3 +290,64 @@ class Consultor(ctk.CTkFrame):
         texto_limpo = re.sub(r'\*(.*?)\*', r'\1', texto)
         texto_limpo = texto_limpo.strip()
         return texto_limpo
+
+    def testar_agente(self):
+        config = {
+            "configurable": {
+                "thread_id": "nova_conversa"
+            }
+        }
+        agente = self.assistente
+        estado = agente.app.get_state(config)
+        mensagens = estado.values.get("messages", [])
+
+        print("\n===== DIAGNÓSTICO DO AGENTE =====")
+        print("Thread ID:", config["configurable"]["thread_id"])
+        print("Total de mensagens:", len(mensagens))
+        print("Estado encontrado:", bool(estado.values))
+
+        ids_chamadas = set()
+        ids_respostas = set()
+
+        for i, mensagem in enumerate(mensagens):
+            print(f"\nMensagem {i}")
+            print("Tipo:", type(mensagem).__name__)
+            print("Conteúdo:", str(mensagem.content)[:200])
+
+            if isinstance(mensagem, AIMessage):
+                chamadas = getattr(mensagem, "tool_calls", []) or []
+
+                for chamada in chamadas:
+                    nome = chamada.get("name")
+                    chamada_id = chamada.get("id")
+
+                    print("Nome da ferramenta:", nome)
+                    print("ID da chamada:", chamada_id)
+                    print("Argumentos:", chamada.get("args"))
+
+                    if not nome:
+                        print("ALERTA: chamada sem nome!")
+
+                    if chamada_id:
+                        ids_chamadas.add(chamada_id)
+
+            elif isinstance(mensagem, ToolMessage):
+                chamada_id = getattr(
+                    mensagem, "tool_call_id", None
+                )
+
+                print("Nome:", getattr(mensagem, "name", None))
+                print("Tool call ID:", chamada_id)
+
+                if chamada_id:
+                    ids_respostas.add(chamada_id)
+
+        print("\n===== VERIFICAÇÃO FINAL =====")
+
+        sem_resposta = ids_chamadas - ids_respostas
+        sem_chamada = ids_respostas - ids_chamadas
+
+        print("Chamadas sem resposta:", sem_resposta)
+        print("Respostas sem chamada:", sem_chamada)
+
+        print("===== FIM DO DIAGNÓSTICO =====")
