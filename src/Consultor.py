@@ -91,7 +91,7 @@ class Consultor(ctk.CTkFrame):
                 return {'Orçamento por dia': por_dia,
                         'Orçamento por pessoa': por_pessoa,
                         'Orçamento por dia/pessoa': por_pessoa_dia}
-            except ZeroDivisionError, ValueError:
+            except (ZeroDivisionError, ValueError):
                 return {'Erro': 'Alguma informação ou calculo deu errado.'}
 
         @tool
