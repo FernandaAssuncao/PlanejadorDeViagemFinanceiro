@@ -23,7 +23,7 @@ class AgenteIA:
     def __init__(self, system='' , ferramentas=None):
         self.system = system
         self.ferramentas = ferramentas or []
-        self.modelo = ChatGroq(model='openai/gpt-oss-120b', api_key=api_key)
+        self.modelo = ChatGroq(model='openai/gpt-oss-20b', api_key=api_key)
         for ferramenta in self.ferramentas:
             print("Tipo:", type(ferramenta).__name__)
             print("Nome:", getattr(ferramenta, "name", None))

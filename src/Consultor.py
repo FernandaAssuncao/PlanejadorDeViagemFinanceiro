@@ -5,6 +5,7 @@ from .APIS.Clima import ClimaService
 from .GerenciadorDeDados.GerenciadorDeDados import GerenciadorDeDados
 from langchain_core.tools import tool
 from langchain_core.messages import AIMessage, ToolMessage
+from .Agente.CriarMultiAgentes import criar_ferramentas_multiAgentes
 from dotenv import load_dotenv
 from tavily import TavilyClient
 import threading
@@ -64,8 +65,8 @@ class Consultor(ctk.CTkFrame):
             else:
                 return 'Não foi possivel buscar a cidade que o usuario quer.'
 
-        @tool
-        def pegar_historico_de_viagens_planejadas_pelo_usuario() -> list:
+        @tool("pegar_historico_de_viagens")
+        def pegar_historico_de_viagens() -> list:
             """Retorna o historico de viagens que o usuario já planejou anteriormente.
             Use esta ferramenta SOMENTE quando o usuario perguntar sobre viagens
             anteriores, historico, viagens passadas, destinos já planejados ou
@@ -153,50 +154,38 @@ class Consultor(ctk.CTkFrame):
         self.ferramentas = [pegar_informacoes_viagem_usuario_atualmente_planejada,
                             pegar_cotacao_moeda,
                             pegar_clima_cidade,
-                            pegar_historico_de_viagens_planejadas_pelo_usuario,
+                            pegar_historico_de_viagens,
                             calcular_orcamento_viagem,
                             converter_moeda,
                             pesquisar_na_web]
+
+        ferramentas_agente = criar_ferramentas_multiAgentes(self.ferramentas)
+
         self.assistente = AgenteIA('''
-            Você é um assistente de viagens curto e objetivo.
-
-            Existem duas fontes diferentes de informações sobre viagens:
-
-            1. VIAGEM ATUALMENTE PLANEJADA:
-           Representa somente a viagem que está atualmente planejada
-           no aplicativo pelo usuário.
-           Use a ferramenta pegar_informacoes_viagem_usuario_atualmente_planejada quando
-           o usuário perguntar sobre a viagem atual.
-
-            2. HISTÓRICO DE VIAGENS:
-            Representa viagens planejadas anteriormente pelo usuário.
-            Use a ferramenta pegar_historico_de_viagens somente quando
-            o usuário perguntar sobre viagens anteriores, histórico,
-            viagens passadas ou comparações entre viagens.
-            Nunca confunda a viagem atualmente planejada com o histórico.
-            Se o usuário disser "minha viagem", "minha viagem atual",
-            "a viagem que estou planejando" ou fizer uma pergunta sobre
-            o planejamento atual, consulte a viagem atualmente planejada.
-            Se o usuário disser "minhas viagens anteriores", "histórico",
-            "viagens que já fiz/planejei", "viagens passadas" ou pedir
-            comparação com viagens anteriores, consulte o histórico.
-            Se o usuário atualizar a viagem no aplicativo, consulte novamente
-            a ferramenta da viagem atualmente planejada para obter os dados
-            atualizados.
-            PESQUISA NA WEB
-            - Use a ferramenta pesquisar_na_web quando a pergunta
-              depender de informações atuais ou de fontes externas.
-            - Para perguntas sobre destinos, atrações, transporte e
-              custos atuais, pesquise antes de responder quando necessário.
-            - Não invente preços, horários, disponibilidade ou informações
-              que não estejam sustentadas pelos resultados.
-            - Diferencie informações encontradas nas fontes de estimativas.
-            - Quando utilizar a pesquisa, mencione as fontes relevantes
-            e forneça seus URLs quando disponíveis.
-            - Se os resultados forem insuficientes, informe essa limitação.
-            Se você já possui uma informação que continua válida na conversa,
-            não chame novamente a ferramenta desnecessariamente.
-            Responda de forma curta e objetiva.''', ferramentas=self.ferramentas)
+              Você é o supervisor de um sistema inteligente de planejamento de viagens.
+            Você possui dois agentes especialistas:
+            1. consultar_agente_financeiro:
+               Responsável por orçamento, cotação de moedas, conversões,
+               viagem atualmente planejada e histórico de viagens.
+            2. consultar_agente_pesquisa:
+               Responsável por pesquisar destinos, restaurantes,
+               atrações turísticas e consultar o clima.
+            REGRAS OBRIGATÓRIAS DE ROTEAMENTO:
+            - Se o usuário perguntar quantas viagens existem no histórico,
+              quais viagens já planejou, quais destinos visitou ou planejou
+              anteriormente, ou pedir uma comparação entre viagens passadas,
+              chame consultar_agente_financeiro.
+            - Se o usuário perguntar sobre o orçamento da viagem atual,
+              cotações, conversões de moedas ou dados da viagem planejada,
+              chame consultar_agente_financeiro.
+            - Se o usuário perguntar sobre restaurantes, atrações turísticas,
+              destinos ou pesquisas na web, chame consultar_agente_pesquisa.
+            - Se perguntar sobre o clima, chame consultar_agente_pesquisa.
+            - Nunca responda que não tem acesso ao histórico sem antes
+              consultar o agente financeiro.
+            - Depois de receber o resultado do especialista, responda
+              diretamente ao usuário, sem inventar informações.''',
+                                   ferramentas=ferramentas_agente)
 
         #self.testar_agente()
         self.grid_columnconfigure(0, weight=1)
@@ -273,7 +262,7 @@ class Consultor(ctk.CTkFrame):
         self.configure(cursor="watch")
 
         def processar_ia_no_segundo_plano():
-            resposta_ia_texte = self.assistente(texto, thread_id='nova_conversa')
+            resposta_ia_texte = self.assistente(texto, thread_id='teste_multiagentes_002')
 
             resposta = self.__limpar_texto_ia(resposta_ia_texte)
             self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))
