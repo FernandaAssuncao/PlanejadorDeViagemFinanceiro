@@ -6,7 +6,9 @@ from .GerenciadorDeDados.GerenciadorDeDados import GerenciadorDeDados
 from langchain_core.tools import tool
 from langchain_core.messages import AIMessage, ToolMessage
 from .Agente.CriarMultiAgentes import criar_ferramentas_multiAgentes
+from .Agente.AgenteRoteiro import criar_agente_roteiro
 from dotenv import load_dotenv
+from uuid import uuid4
 from tavily import TavilyClient
 import threading
 import re
@@ -159,17 +161,33 @@ class Consultor(ctk.CTkFrame):
                             converter_moeda,
                             pesquisar_na_web]
 
-        ferramentas_agente = criar_ferramentas_multiAgentes(self.ferramentas)
+        ferramentas_agente, self.agente_financeiro, self.agente_pesquisa = criar_ferramentas_multiAgentes(self.ferramentas)
+
+        self.agente_roteiro = criar_agente_roteiro(self.agente_financeiro, self.agente_pesquisa)
+
+        @tool("consultar_agente_roteiro")
+        def consultar_roteiro(pergunta: str) -> str:
+            """Cria roteiros personalizados de viagem
+            considerando orçamento, destino e duração."""
+
+            return self.agente_roteiro(
+                pergunta,
+                thread_id=f"roteiro_{uuid4().hex}"
+            )
+
+        ferramentas_agente.append(consultar_roteiro)
 
         self.assistente = AgenteIA('''
               Você é o supervisor de um sistema inteligente de planejamento de viagens.
-            Você possui dois agentes especialistas:
+            Você possui  agentes especialistas:
             1. consultar_agente_financeiro:
                Responsável por orçamento, cotação de moedas, conversões,
                viagem atualmente planejada e histórico de viagens.
             2. consultar_agente_pesquisa:
                Responsável por pesquisar destinos, restaurantes,
                atrações turísticas e consultar o clima.
+            - Quando o usuário solicitar a criação de um roteiro completo,
+            utilize consultar_agente_roteiro.
             REGRAS OBRIGATÓRIAS DE ROTEAMENTO:
             - Se o usuário perguntar quantas viagens existem no histórico,
               quais viagens já planejou, quais destinos visitou ou planejou
@@ -262,7 +280,7 @@ class Consultor(ctk.CTkFrame):
         self.configure(cursor="watch")
 
         def processar_ia_no_segundo_plano():
-            resposta_ia_texte = self.assistente(texto, thread_id='teste_multiagentes_002')
+            resposta_ia_texte = self.assistente(texto, thread_id='teste_multiagentes_004')
 
             resposta = self.__limpar_texto_ia(resposta_ia_texte)
             self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))

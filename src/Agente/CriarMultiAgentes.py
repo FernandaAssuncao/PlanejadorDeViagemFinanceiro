@@ -85,7 +85,11 @@ def criar_ferramentas_multiAgentes(ferramentas_existentes):
             thread_id=thread_id,
         )
 
-    return [
-        consultar_agente_financeiro,
-        consultar_agente_pesquisa,
-    ]
+    return (
+        [
+            consultar_agente_financeiro,
+            consultar_agente_pesquisa
+        ],
+        agente_financeiro,
+        agente_pesquisa
+    )
