@@ -14,4 +14,4 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 CAMINHO_PDF = BASE_DIR / "data" / "london-visitor-guide.pdf"
 
 # Passa o caminho convertido para string para o teu loader (ex: PyPDFLoader)
-loader = PyPDFLoader(str(CAMINHO_PDF))
+loader = PyPDFLoader(str(CAMINHO_PDF)).load()
