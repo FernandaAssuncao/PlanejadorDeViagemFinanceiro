@@ -13,3 +13,6 @@ groq
 
 tavily-python
 tavily
+langchain-community
+langchain-huggingface
+langchain-experimental
