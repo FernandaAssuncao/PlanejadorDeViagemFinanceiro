@@ -21,6 +21,7 @@ class Consultor(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.thread_id = f"consultor_{uuid4().hex}"
 
         @tool
         def pegar_informacoes_viagem_usuario_atualmente_planejada() -> str:
@@ -280,7 +281,7 @@ class Consultor(ctk.CTkFrame):
         self.configure(cursor="watch")
 
         def processar_ia_no_segundo_plano():
-            resposta_ia_texte = self.assistente(texto, thread_id='teste_multiagentes_004')
+            resposta_ia_texte = self.assistente(texto, thread_id=self.thread_id)
 
             resposta = self.__limpar_texto_ia(resposta_ia_texte)
             self.after(500, lambda: self.__adicionar_mensagem(resposta, remetente='ia'))

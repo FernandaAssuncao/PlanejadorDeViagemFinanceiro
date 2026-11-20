@@ -10,6 +10,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langchain_core.messages import trim_messages
 from langchain_core.messages import AIMessage, ToolMessage
 import sqlite3
+from pathlib import Path
 
 
 load_dotenv()
@@ -31,7 +32,20 @@ class AgenteIA:
 
         self.modelo_com_ferramentas = self.modelo.bind_tools(self.ferramentas)
 
-        self.conn = sqlite3.connect('./data/agente.db', check_same_thread=False)
+        # Localiza a raiz do projeto
+        raiz_projeto = Path(__file__).resolve().parents[2]
+
+        # Define o caminho do banco de dados
+        pasta_dados = raiz_projeto / 'data'
+        pasta_dados.mkdir(parents=True, exist_ok=True)
+
+        caminho_banco = pasta_dados / 'agente.db'
+
+        # Cria ou abre o banco de dados
+        self.conn = sqlite3.connect(
+            str(caminho_banco),
+            check_same_thread=False
+        )
 
         self.checkpointer = SqliteSaver(self.conn)
 
