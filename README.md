@@ -254,13 +254,13 @@ O HITL será utilizado principalmente para operações que modificam dados, e n�
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/SEU-USUARIO/TravelBudget.git
+git clone https://github.com/FernandaAssuncao/PlanejadorDeViagemFinanceiro.git
 ```
 
 Entre na pasta:
 
 ```bash
-cd TravelBudget
+cd PlanejadorDeViagemFinanceiro
 ```
 
 ### 2. Crie um ambiente virtual
