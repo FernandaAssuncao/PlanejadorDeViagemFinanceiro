@@ -62,14 +62,22 @@ vectorstore = FAISS.from_documents(pedacos, embeddings)
 retriver = vectorstore.as_retriever(search_kwargs={"k": 3})
 
 prompt_template = ChatPromptTemplate.from_messages([
-    ('system', 'Você é um especialista em viagens, seu trabalho é receber o contexto(a maior parte deles em ingles) e utilizar para formular uma resposta adequada ao usuario. NÃO INVENTE INFORMAÇÕES QUE NÃO ESTÃO NO CONTEXTO PASSADO.'),
+    ('system', 'Você é um especialista em viagens, seu trabalho é receber o contexto(a maior parte deles em ingles) e utilizar para formular uma resposta adequada ao usuario. Se o contexto não contiver a resposta, diga que não encontrou essa informação nos documentos.'),
     ('human', '{query}\nContexto: {context}\nResposta: ')
+])
+
+prompt_busca = ChatPromptTemplate.from_messages([
+    ('system', 'You are an expert in semantic search; your task is to take a question and transform it into a search query for a vector database. Note: (You will always receive the question in Portuguese).'),
+    ('human', '{query}')
 ])
 
 cadeia = prompt_template | model | StrOutputParser()
 
+cadeia_busca = prompt_busca | model | StrOutputParser()
+
 def responder(pergunta: str):
-    trecos = retriver.invoke(f'query: {pergunta}')
+    busca = cadeia_busca.invoke({'query': pergunta})
+    trecos = retriver.invoke(f'query: {busca}')
     contexto = '\n\n'.join(
         trecho.page_content.removeprefix("passage: ")
         for trecho in trecos)
@@ -92,5 +100,5 @@ def testar_busca(pergunta: str):
         print("Página:", doc.metadata.get("page"))
         print("Conteúdo:", doc.page_content[:1000])
 
-testar_busca('Quais museus eu posso visitar em londres.')
-#print(responder('Quais museus eu posso visitar em Londres?'))
+#testar_busca('Quais museus eu posso visitar em londres.')
+print(responder('Quais museus eu posso visitar em Londres?'))
