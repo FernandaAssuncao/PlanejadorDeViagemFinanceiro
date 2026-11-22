@@ -59,32 +59,48 @@ for i, doc in enumerate(pedacos):
 
 vectorstore = FAISS.from_documents(pedacos, embeddings)
 
-retriver = vectorstore.as_retriever(search_kwargs={"k": 3})
+prompt_busca = ChatPromptTemplate.from_messages([
+    (
+        "system",
+        "You are a semantic search specialist. Convert the user's Portuguese question "
+        "into a concise, effective search query in English for a travel vector database. "
+        "Return ONLY the search query, with no quotes, labels, or explanations."
+    ),
+    ("human", "{query}")
+])
 
 prompt_template = ChatPromptTemplate.from_messages([
-    ('system', 'Você é um especialista em viagens, seu trabalho é receber o contexto(a maior parte deles em ingles) e utilizar para formular uma resposta adequada ao usuario. Se o contexto não contiver a resposta, diga que não encontrou essa informação nos documentos.'),
-    ('human', '{query}\nContexto: {context}\nResposta: ')
+    (
+        "system",
+        "Você é um especialista em viagens. Responda em português usando EXCLUSIVAMENTE "
+        "as informações fornecidas no contexto (que pode estar em inglês). "
+        "Não invente informações e não use conhecimento externo. "
+        "Se a resposta não estiver no contexto, diga claramente que não encontrou essa informação no material."
+    ),
+    ("human", "Pergunta: {query}\n\nContexto:\n{context}\n\nResposta:")
 ])
-
-prompt_busca = ChatPromptTemplate.from_messages([
-    ('system', 'You are an expert in semantic search; your task is to take a question and transform it into a search query for a vector database. Note: (You will always receive the question in Portuguese).'),
-    ('human', '{query}')
-])
-
-cadeia = prompt_template | model | StrOutputParser()
 
 cadeia_busca = prompt_busca | model | StrOutputParser()
+cadeia = prompt_template | model | StrOutputParser()
 
-def responder(pergunta: str):
-    busca = cadeia_busca.invoke({'query': pergunta})
-    trecos = retriver.invoke(f'query: {busca}')
-    contexto = '\n\n'.join(
-        trecho.page_content.removeprefix("passage: ")
-        for trecho in trecos)
+retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+
+def responder(pergunta: str, debug: bool = False) -> str:
+    busca = cadeia_busca.invoke({"query": pergunta}).strip()
+    documentos_relevantes = retriever.invoke(f"query: {busca}")
+
+    if debug:
+        print("Query gerada:", busca)
+        print("Qtd. chunks recuperados:", len(documentos_relevantes))
+
+    contexto = "\n\n---\n\n".join(
+        doc.page_content.removeprefix("passage: ")
+        for doc in documentos_relevantes
+    )
 
     return cadeia.invoke({
-        'query': pergunta,
-        'context': contexto
+        "query": pergunta,
+        "context": contexto
     })
 
 def testar_busca(pergunta: str):
@@ -101,4 +117,4 @@ def testar_busca(pergunta: str):
         print("Conteúdo:", doc.page_content[:1000])
 
 #testar_busca('Quais museus eu posso visitar em londres.')
-print(responder('Quais museus eu posso visitar em Londres?'))
+print(responder('Quais são todas as opções de transporte público disponíveis em Londres?', debug=True))
